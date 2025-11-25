@@ -38,16 +38,39 @@ jobs:
       - name: Zip output into .ipa
         run: zip -qq -r -9 build/ios/iphoneos/FlutterIpaExport.ipa build/ios/iphoneos/Payload
 
-      # Create a new release if it doesn't exist
+      # Create a release if it doesn't exist using GitHub API
       - name: Create Release
         id: create_release
-        uses: gh-action-create-release@v1  # Action to create a release
+        uses: actions/github-script@v6
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          tag_name: v1.0  # Set the version tag you want
-          release_name: "Release v1.0"  # Set the name of the release
-          body: "This is the first release of the iOS app."
-
+          script: |
+            const tagName = 'v1.0';  // Tag name for the release
+            const releaseName = 'Release v1.0';  // Name of the release
+            const releaseBody = 'This is the first release of the iOS app.';  // Release notes
+            
+            // Check if the release already exists
+            const { data: release } = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: tagName
+            }).catch(() => null);  // If it doesn't exist, we catch the error
+            
+            if (!release) {
+              // If release doesn't exist, create it
+              const response = await github.rest.repos.createRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag_name: tagName,
+                name: releaseName,
+                body: releaseBody,
+                draft: false,
+                prerelease: false
+              });
+              console.log(`Release created: ${response.data.html_url}`);
+            } else {
+              console.log(`Release already exists: ${release.html_url}`);
+            }
+        
       # Upload the .ipa to GitHub Releases
       - name: Upload .ipa to Release
         uses: svenstaro/upload-release-action@v2
