@@ -309,7 +309,7 @@ Full Stack Developer
 
 ## 📸 Screenshots
 
-> *Coming soon! Add screenshots of your app here*
+> *Coming soon!*
 
 ---
 
