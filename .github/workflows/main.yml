@@ -1,82 +1,39 @@
 name: iOS-ipa-build
 
 on:
-  workflow_dispatch:  # Allows manual triggering of the workflow
+  workflow_dispatch:
 
 jobs:
   build-ios:
     name: 🎉 iOS Build
-    runs-on: macos-latest  # Use macOS runner
-
+    runs-on: macos-latest
     steps:
-      # Checkout the repository
       - uses: actions/checkout@v3
 
-      # Setup Flutter environment
       - uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'  # You can specify a version here if needed
-          architecture: arm64  # Let Flutter decide, or use `x64` if targeting Intel Macs
-
-      # Install Flutter dependencies
+          channel: 'stable'
+          architecture: x64
       - run: flutter pub get
+      
 
-      # Install CocoaPods dependencies
-      - run: pod install --repo-update
-        working-directory: ios  # Ensure to work inside the iOS directory
+      - run: pod repo update
+        working-directory: ios
 
-      # Build iOS app in release mode without code-signing
       - run: flutter build ios --release --no-codesign
 
-      # Create Payload directory for .ipa packaging
-      - run: mkdir -p build/ios/iphoneos/Payload
+      - run: mkdir Payload
+        working-directory: build/ios/iphoneos
 
-      # Move the Runner.app into Payload directory (Make sure the path is correct)
-      - run: mv build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload/
+      - name: Zip output
+        run: zip -qq -r -9 FlutterIpaExport.ipa Payload
+        working-directory: build/ios/iphoneos
 
-      # Zip the .app into a .ipa file
-      - name: Zip output into .ipa
-        run: zip -qq -r -9 build/ios/iphoneos/FlutterIpaExport.ipa build/ios/iphoneos/Payload
-
-      # Create a release if it doesn't exist using GitHub API
-      - name: Create Release
-        id: create_release
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const tagName = 'v1.0';  // Tag name for the release
-            const releaseName = 'Release v1.0';  // Name of the release
-            const releaseBody = 'This is the first release of the iOS app.';  // Release notes
-            
-            // Check if the release already exists
-            const { data: release } = await github.rest.repos.getReleaseByTag({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag: tagName
-            }).catch(() => null);  // If it doesn't exist, we catch the error
-            
-            if (!release) {
-              // If release doesn't exist, create it
-              const response = await github.rest.repos.createRelease({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                tag_name: tagName,
-                name: releaseName,
-                body: releaseBody,
-                draft: false,
-                prerelease: false
-              });
-              console.log(`Release created: ${response.data.html_url}`);
-            } else {
-              console.log(`Release already exists: ${release.html_url}`);
-            }
-        
-      # Upload the .ipa to GitHub Releases
-      - name: Upload .ipa to Release
+      - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}  # GitHub token for authentication
-          file: build/ios/iphoneos/FlutterIpaExport.ipa  # The .ipa file to upload
-          tag: v1.0  # Tag for the release
-          overwrite: true  # Overwrite if the file already exists in the release
-          body: "This is the first release of the iOS app."  # Optional release body description
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: build/ios/iphoneos/FlutterIpaExport.ipa
+          tag: v0.1
+          overwrite: true
+          body: "This is first release"
