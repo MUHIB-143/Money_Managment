@@ -28,12 +28,45 @@ jobs:
       - name: Zip output
         run: zip -qq -r -9 FlutterIpaExport.ipa Payload
         working-directory: build/ios/iphoneos
-
-      - name: Upload binaries to release
+        # Create a release if it doesn't exist using GitHub API
+      - name: Create Release
+        id: create_release
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const tagName = 'v1.0';  // Tag name for the release
+            const releaseName = 'Release v1.0';  // Name of the release
+            const releaseBody = 'This is the first release of the iOS app.';  // Release notes
+            
+            // Check if the release already exists
+            const { data: release } = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: tagName
+            }).catch(() => null);  // If it doesn't exist, we catch the error
+            
+            if (!release) {
+              // If release doesn't exist, create it
+              const response = await github.rest.repos.createRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag_name: tagName,
+                name: releaseName,
+                body: releaseBody,
+                draft: false,
+                prerelease: false
+              });
+              console.log(`Release created: ${response.data.html_url}`);
+            } else {
+              console.log(`Release already exists: ${release.html_url}`);
+            }
+        
+      # Upload the .ipa to GitHub Releases
+      - name: Upload .ipa to Release
         uses: svenstaro/upload-release-action@v2
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: build/ios/iphoneos/FlutterIpaExport.ipa
-          tag: v0.1
-          overwrite: true
-          body: "This is first release"
+          repo_token: ${{ secrets.GITHUB_TOKEN }}  # GitHub token for authentication
+          file: build/ios/iphoneos/FlutterIpaExport.ipa  # The .ipa file to upload
+          tag: v1.0  # Ensure this matches the tag of the release you want to upload to
+          overwrite: true  # Overwrite if the file already exists in the release
+          body: "This is the first release of the iOS app."  # Optional release body description
