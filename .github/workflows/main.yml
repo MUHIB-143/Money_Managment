@@ -17,11 +17,9 @@ jobs:
       uses: actions/checkout@v2  # Check out your repository code
 
     - name: Set up Flutter
-      run: |
-        # Clone Flutter from GitHub (stable version)
-        git clone https://github.com/flutter/flutter.git -b stable --depth 1
-        export PATH="$PATH:$PWD/flutter/bin"
-        flutter --version  # Verify Flutter installation
+      uses: subosito/flutter-action@v2  # Use Flutter action to install Flutter SDK
+      with:
+        flutter-version: 'stable'  # You can specify a different version of Flutter if needed
 
     - name: Install dependencies
       run: flutter pub get  # Install Flutter dependencies
