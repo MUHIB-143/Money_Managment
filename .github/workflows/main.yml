@@ -1,38 +1,42 @@
-name: Flutter iOS Build and Release
+name: iOS-ipa-build
 
 on:
-  push:
-    branches:
-      - master  # Trigger the workflow on pushes to the `master` branch
-  pull_request:
-    branches:
-      - master  # Trigger the workflow on pull requests to `master`
+  workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: macos-latest  # Use the macOS runner provided by GitHub Actions
-
+  build-ios:
+    name: 🎉 iOS Build
+    runs-on: macos-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2  # Check out your repository code
+      - uses: actions/checkout@v3
 
-    - name: Set up Flutter
-      uses: subosito/flutter-action@v2  # Set up Flutter SDK using subosito/flutter-action
-      with:
-        flutter-version: 'stable'  # Use the stable version of Flutter
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          architecture: x64
+      - run: flutter pub get
+      
 
-    - name: Install dependencies
-      run: flutter pub get  # Install Flutter dependencies
+      - run: pod repo update
+        working-directory: ios
 
-    - name: Set up Xcode
-      run: sudo xcode-select -s /Applications/Xcode_12.5.app/Contents/Developer  # Use the specific Xcode version (adjust version if needed)
+      - run: flutter build ios --release --no-codesign
 
-    - name: Build iOS App
-      run: flutter build ios --release --no-codesign  # Build the .ipa file without code signing
+      - run: mkdir Payload
+        working-directory: build/ios/iphoneos
 
-    - name: Upload .ipa as a GitHub Release Artifact
-      uses: softprops/action-gh-release@v1
-      with:
-        files: build/ios/iphoneos/Runner.ipa  # Path to the generated .ipa file
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Use GitHub's built-in token for authentication
+      - run: mv Runner.app/ Payload
+        working-directory: build/ios/iphoneos
+
+      - name: Zip output
+        run: zip -qq -r -9 FlutterIpaExport.ipa Payload
+        working-directory: build/ios/iphoneos
+
+      - name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: build/ios/iphoneos/FlutterIpaExport.ipa
+          tag: v1.0
+          overwrite: true
+          body: "This is first release"
